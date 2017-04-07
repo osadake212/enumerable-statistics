@@ -1487,6 +1487,44 @@ ary_stdev(int argc, VALUE* argv, VALUE ary)
   return stdev;
 }
 
+static VALUE
+rb_ary_weighted_sample(int argc, VALUE* argv, VALUE ary)
+{
+  VALUE weight_ary, weight;
+  long len = 0, i = 0, random_weight_index = 0;
+  double max_value = 0.0, random_weight = 0.0, weight_double = 0.0;
+
+  if (argc == 0) {
+    return rb_ary_sample(0, argv, ary);
+  }
+
+  weight_ary = argv[0];
+  if (TYPE(weight_ary) != T_ARRAY) {
+      return rb_ary_sample(0, argv, ary);
+  }
+
+  len = RARRAY_LEN(ary);
+  if (len < 2) {
+      return RARRAY_AREF(ary, 0);
+  }
+
+  for(int i = 0; i < len; ++i) {
+    weight_double = NUM2DBL(RARRAY_AREF(weight_ary, i));
+    if (weight_double < 0 && 1.0 < weight_double) {
+      weight_double = 0.0;
+    }
+
+    random_weight = weight_double == 0.0 ? 0.0 : pow(rb_genrand_real(), 1.0 / weight_double);
+
+    if (max_value < random_weight) {
+      max_value = random_weight;
+      random_weight_index = i;
+    }
+  }
+
+  return RARRAY_AREF(ary, random_weight_index);
+}
+
 void
 Init_extension(void)
 {
@@ -1508,6 +1546,7 @@ Init_extension(void)
   rb_define_method(rb_cArray, "variance", ary_variance, -1);
   rb_define_method(rb_cArray, "mean_stdev", ary_mean_stdev, -1);
   rb_define_method(rb_cArray, "stdev", ary_stdev, -1);
+  rb_define_method(rb_cArray, "weighted_sample", rb_ary_weighted_sample, -1);
 
   half_in_rational = nurat_s_new_internal(rb_cRational, INT2FIX(1), INT2FIX(2));
   rb_gc_register_mark_object(half_in_rational);
